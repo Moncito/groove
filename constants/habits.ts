@@ -1,0 +1,31 @@
+export const DEFAULT_HABIT_ICONS = [
+  '🏋️',
+  '🏃',
+  '📖',
+  '✍️',
+  '🧘',
+  '💻',
+  '🎸',
+  '🎨',
+  '🥗',
+  '💊',
+  '🌅',
+  '🛌',
+  '📹',
+  '🎙️',
+  '💰',
+  '🧹',
+  '🚴',
+  '🏊',
+  '🤸',
+  '🍺',
+] as const
+
+export const DEFAULT_HABIT_COLORS = [
+  '#E8472A',
+  '#3CCF6E',
+  '#1E8A3E',
+  '#0D4A21',
+  '#6B6558',
+  '#A8D5B5',
+] as const
