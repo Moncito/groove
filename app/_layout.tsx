@@ -1,7 +1,10 @@
 import '../global.css'
 
-import { useEffect } from 'react'
-import { Stack } from 'expo-router'
+import * as WebBrowser from 'expo-web-browser'
+WebBrowser.maybeCompleteAuthSession()
+
+import { useEffect, useState } from 'react'
+import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import {
   useFonts,
@@ -20,6 +23,7 @@ import { SENTRY_DSN, POSTHOG_API_KEY, POSTHOG_HOST } from '@/constants/config'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { colors } from '@/theme/tokens'
+import CustomSplashScreen from '@/components/SplashScreen'
 
 // ---------------------------------------------------------------------------
 // Keep splash visible until fonts are loaded
@@ -52,11 +56,45 @@ const queryClient = new QueryClient({
 })
 
 // ---------------------------------------------------------------------------
+// Navigation logic handler
+// ---------------------------------------------------------------------------
+function Navigation(): React.JSX.Element {
+  const { session, isLoading } = useAuthStore()
+  const segments = useSegments()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isLoading) return
+
+    const inAuthGroup = segments[0] === '(auth)'
+    const isOnboarding = segments[1] === 'onboarding'
+
+    if (!session && !inAuthGroup) {
+      // Redirect to landing if not logged in
+      router.replace('/(auth)')
+    } else if (session && inAuthGroup && !isOnboarding) {
+      // Redirect to app if logged in and not in onboarding
+      router.replace('/(tabs)')
+    }
+  }, [session, isLoading, segments, router])
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="[username]" />
+      <Stack.Screen name="habit/[id]" />
+    </Stack>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Root layout
 // ---------------------------------------------------------------------------
 function RootLayout(): React.JSX.Element | null {
   const setSession = useAuthStore((s) => s.setSession)
   const setLoading = useAuthStore((s) => s.setLoading)
+  const [showSplash, setShowSplash] = useState(true)
 
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -92,16 +130,15 @@ function RootLayout(): React.JSX.Element | null {
 
   if (!fontsLoaded && !fontError) return null
 
+  if (showSplash) {
+    return <CustomSplashScreen onFinish={() => setShowSplash(false)} />
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <PostHogProvider client={posthog}>
         <StatusBar style="dark" backgroundColor={colors.background} />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="[username]" />
-          <Stack.Screen name="habit/[id]" />
-        </Stack>
+        <Navigation />
       </PostHogProvider>
     </QueryClientProvider>
   )
