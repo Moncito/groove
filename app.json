@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.groove.app"
+      "bundleIdentifier": "com.groove.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,11 +37,17 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-      "@sentry/react-native/expo",
-      "@sentry/react-native"
+      "expo-dev-client",
+      "@sentry/react-native/expo"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "85b685f9-6cf7-4237-a027-59eab466e87f"
+      }
     }
   }
 }
