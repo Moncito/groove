@@ -1,32 +1,22 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./app/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
-  presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        // Backgrounds
         background: '#F7F4EF',
         surface: '#EEE9E1',
         'surface-raised': '#FFFFFF',
-
-        // Ink
         ink: '#111008',
         'ink-secondary': '#6B6558',
         'ink-tertiary': '#A89F93',
-
-        // Grid cells
         'grid-empty': '#DDD8D0',
         'grid-1': '#A8D5B5',
         'grid-2': '#3CCF6E',
         'grid-3': '#1E8A3E',
         'grid-4': '#0D4A21',
-
-        // Accent
         accent: '#E8472A',
         'accent-soft': '#FDE8E4',
-
-        // Border / shadow
         border: '#E0D9CF',
       },
       fontFamily: {
@@ -38,22 +28,17 @@ module.exports = {
         'mono': ['SpaceMono_400Regular'],
       },
       fontSize: {
-        // Display scale
         'display-sm': ['48px', { lineHeight: '52px', letterSpacing: '-1.5px' }],
         'display-lg': ['72px', { lineHeight: '76px', letterSpacing: '-1.5px' }],
-        // Heading scale
         'h1-sm': ['36px', { lineHeight: '40px', letterSpacing: '-1px' }],
         'h1-lg': ['48px', { lineHeight: '52px', letterSpacing: '-1px' }],
         'h2-sm': ['24px', { lineHeight: '28px', letterSpacing: '-0.5px' }],
         'h2-lg': ['28px', { lineHeight: '32px', letterSpacing: '-0.5px' }],
-        // Body scale
         body: ['15px', { lineHeight: '22px' }],
         'body-lg': ['16px', { lineHeight: '24px' }],
-        // Label / caption
         label: ['13px', { lineHeight: '18px', letterSpacing: '0.5px' }],
         'label-sm': ['12px', { lineHeight: '16px', letterSpacing: '0.5px' }],
         caption: ['11px', { lineHeight: '15px', letterSpacing: '0.2px' }],
-        // Wordmark
         wordmark: ['28px', { lineHeight: '32px', letterSpacing: '-1px' }],
       },
       spacing: {

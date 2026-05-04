@@ -1,30 +1,21 @@
 import 'react-native-url-polyfill/auto'
 import { createClient } from '@supabase/supabase-js'
-import { createMMKV } from 'react-native-mmkv'
-import type { MMKV } from 'react-native-mmkv'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/constants/config'
 
 // ---------------------------------------------------------------------------
-// MMKV-backed storage adapter for Supabase auth session persistence
+// AsyncStorage adapter for Supabase auth session persistence
+// (MMKV will replace this in native builds via expo prebuild)
 // ---------------------------------------------------------------------------
-let storage: MMKV | null = null
-
-function getStorage(): MMKV {
-  if (!storage) {
-    storage = createMMKV({ id: 'supabase-auth' })
-  }
-  return storage
-}
-
-const mmkvStorageAdapter = {
-  getItem: (key: string): string | null => {
-    return getStorage().getString(key) ?? null
+const asyncStorageAdapter = {
+  getItem: async (key: string) => {
+    return await AsyncStorage.getItem(key)
   },
-  setItem: (key: string, value: string): void => {
-    getStorage().set(key, value)
+  setItem: async (key: string, value: string) => {
+    await AsyncStorage.setItem(key, value)
   },
-  removeItem: (key: string): void => {
-    getStorage().remove(key)
+  removeItem: async (key: string) => {
+    await AsyncStorage.removeItem(key)
   },
 }
 
@@ -33,7 +24,7 @@ const mmkvStorageAdapter = {
 // ---------------------------------------------------------------------------
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: mmkvStorageAdapter,
+    storage: asyncStorageAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
