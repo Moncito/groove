@@ -38,8 +38,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-dev-client",
-      "@sentry/react-native/expo",
-      "@sentry/react-native"
+      "@sentry/react-native/expo"
     ],
     "experiments": {
       "typedRoutes": true

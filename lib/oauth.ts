@@ -35,9 +35,16 @@ export const signInWithOAuth = async (provider: 'google' | 'github') => {
         const refresh_token = params.get('refresh_token')
 
         if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token })
+          const { error: setSessionError } = await supabase.auth.setSession({ access_token, refresh_token })
+          if (setSessionError) throw setSessionError
+        } else {
+          throw new Error('OAuth: Missing access token or refresh token in response')
         }
       }
+    } else if (result.type === 'dismiss' || result.type === 'cancel') {
+      throw new Error('OAuth: User cancelled authentication')
+    } else {
+      throw new Error(`OAuth: Unexpected result type: ${result.type}`)
     }
   }
 }

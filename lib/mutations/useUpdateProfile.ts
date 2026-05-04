@@ -27,7 +27,12 @@ export function useUpdateProfile() {
   const userId = useAuthStore((s) => s.user?.id ?? '')
 
   return useMutation({
-    mutationFn: (input: UpdateProfileInput) => updateProfile(input, userId),
+    mutationFn: (input: UpdateProfileInput) => {
+      if (!userId) {
+        throw new Error('Unauthenticated: No user ID found')
+      }
+      return updateProfile(input, userId)
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['profile', data.username] })
       queryClient.invalidateQueries({ queryKey: ['profile', userId] })

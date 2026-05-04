@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { View, Text, Animated, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { colors, typography } from '@/theme/tokens'
@@ -8,10 +8,18 @@ interface SplashScreenProps {
 }
 
 export default function CustomSplashScreen({ onFinish }: SplashScreenProps): React.JSX.Element {
-  const [fadeAnim] = useState(new Animated.Value(0))
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const onFinishRef = useRef(onFinish)
+  const mountedRef = useRef(true)
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null)
 
   useEffect(() => {
-    Animated.sequence([
+    onFinishRef.current = onFinish
+  }, [onFinish])
+
+  useEffect(() => {
+    mountedRef.current = true
+    animationRef.current = Animated.sequence([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -23,10 +31,19 @@ export default function CustomSplashScreen({ onFinish }: SplashScreenProps): Rea
         duration: 800,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      if (onFinish) onFinish()
+    ])
+    
+    animationRef.current.start(() => {
+      if (mountedRef.current && onFinishRef.current) {
+        onFinishRef.current()
+      }
     })
-  }, [fadeAnim, onFinish])
+
+    return () => {
+      mountedRef.current = false
+      animationRef.current?.stop()
+    }
+  }, [])
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
