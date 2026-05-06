@@ -32,3 +32,22 @@ export function useHabits(userId: string) {
     enabled: Boolean(userId),
   })
 }
+
+async function fetchHabit(habitId: string): Promise<Habit> {
+  const { data, error } = await supabase
+    .from('habits')
+    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at')
+    .eq('id', habitId)
+    .single()
+
+  if (error) throw error
+  return data as Habit
+}
+
+export function useHabit(habitId: string) {
+  return useQuery({
+    queryKey: ['habit', habitId],
+    queryFn: () => fetchHabit(habitId),
+    enabled: Boolean(habitId),
+  })
+}

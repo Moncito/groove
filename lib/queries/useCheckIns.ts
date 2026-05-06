@@ -22,10 +22,30 @@ async function fetchCheckIns(habitId: string): Promise<CheckIn[]> {
   return (data ?? []) as CheckIn[]
 }
 
+async function fetchTodayCheckIns(userId: string): Promise<CheckIn[]> {
+  const today = new Date().toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('id, habit_id, user_id, checked_date, proof_url, note, created_at')
+    .eq('user_id', userId)
+    .eq('checked_date', today)
+
+  if (error) throw error
+  return (data ?? []) as CheckIn[]
+}
+
 export function useCheckIns(habitId: string) {
   return useQuery({
     queryKey: ['check-ins', habitId],
     queryFn: () => fetchCheckIns(habitId),
     enabled: Boolean(habitId),
+  })
+}
+
+export function useTodayCheckIns(userId: string) {
+  return useQuery({
+    queryKey: ['check-ins', 'today', userId],
+    queryFn: () => fetchTodayCheckIns(userId),
+    enabled: Boolean(userId),
   })
 }

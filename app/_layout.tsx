@@ -1,8 +1,5 @@
 import '../global.css'
 
-import * as WebBrowser from 'expo-web-browser'
-WebBrowser.maybeCompleteAuthSession()
-
 import { useEffect, useState } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
@@ -18,8 +15,9 @@ import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono'
 import * as SplashScreen from 'expo-splash-screen'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as Sentry from '@sentry/react-native'
-import PostHog, { PostHogProvider } from 'posthog-react-native'
-import { SENTRY_DSN, POSTHOG_API_KEY, POSTHOG_HOST } from '@/constants/config'
+// import PostHog, { PostHogProvider } from 'posthog-react-native'
+import { SENTRY_DSN } from '@/constants/config'
+// import { POSTHOG_API_KEY, POSTHOG_HOST } from '@/constants/config'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { colors } from '@/theme/tokens'
@@ -39,11 +37,6 @@ Sentry.init({
 })
 
 // ---------------------------------------------------------------------------
-// PostHog
-// ---------------------------------------------------------------------------
-const posthog = new PostHog(POSTHOG_API_KEY, { host: POSTHOG_HOST })
-
-// ---------------------------------------------------------------------------
 // TanStack Query
 // ---------------------------------------------------------------------------
 const queryClient = new QueryClient({
@@ -56,7 +49,7 @@ const queryClient = new QueryClient({
 })
 
 // ---------------------------------------------------------------------------
-// Navigation logic handler
+// Navigation component — handles routing based on session
 // ---------------------------------------------------------------------------
 function Navigation(): React.JSX.Element {
   const { session, isLoading } = useAuthStore()
@@ -67,13 +60,12 @@ function Navigation(): React.JSX.Element {
     if (isLoading) return
 
     const inAuthGroup = segments[0] === '(auth)'
-    const isOnboarding = segments[1] === 'onboarding'
 
     if (!session && !inAuthGroup) {
-      // Redirect to landing if not logged in
+      // User is not signed in, redirect to login
       router.replace('/(auth)')
-    } else if (session && inAuthGroup && !isOnboarding) {
-      // Redirect to app if logged in and not in onboarding
+    } else if (session && inAuthGroup) {
+      // User is signed in, redirect to tabs
       router.replace('/(tabs)')
     }
   }, [session, isLoading, segments, router])
@@ -84,6 +76,7 @@ function Navigation(): React.JSX.Element {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="[username]" />
       <Stack.Screen name="habit/[id]" />
+      <Stack.Screen name="habit/create" />
     </Stack>
   )
 }
@@ -131,15 +124,19 @@ function RootLayout(): React.JSX.Element | null {
   if (!fontsLoaded && !fontError) return null
 
   if (showSplash) {
-    return <CustomSplashScreen onFinish={() => setShowSplash(false)} />
+    return (
+      <CustomSplashScreen
+        onFinish={() => setShowSplash(false)}
+      />
+    )
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PostHogProvider client={posthog}>
+      {/* <PostHogProvider client={posthog}> */}
         <StatusBar style="dark" backgroundColor={colors.background} />
         <Navigation />
-      </PostHogProvider>
+      {/* </PostHogProvider> */}
     </QueryClientProvider>
   )
 }
