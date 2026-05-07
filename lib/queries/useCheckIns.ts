@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { formatCheckedDate } from '@/lib/dates'
 
 export interface CheckIn {
   id: string
@@ -9,6 +10,25 @@ export interface CheckIn {
   proof_url: string | null
   note: string | null
   created_at: string
+}
+
+export function useAllCheckIns(userId: string) {
+  return useQuery({
+    queryKey: ['all-check-ins', userId],
+    queryFn: () => fetchAllCheckIns(userId),
+    enabled: Boolean(userId),
+  })
+}
+
+async function fetchAllCheckIns(userId: string): Promise<CheckIn[]> {
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('id, habit_id, user_id, checked_date, proof_url, note, created_at')
+    .eq('user_id', userId)
+    .order('checked_date', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as CheckIn[]
 }
 
 async function fetchCheckIns(habitId: string): Promise<CheckIn[]> {
@@ -23,7 +43,7 @@ async function fetchCheckIns(habitId: string): Promise<CheckIn[]> {
 }
 
 async function fetchTodayCheckIns(userId: string): Promise<CheckIn[]> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = formatCheckedDate(new Date())
   const { data, error } = await supabase
     .from('check_ins')
     .select('id, habit_id, user_id, checked_date, proof_url, note, created_at')

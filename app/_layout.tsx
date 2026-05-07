@@ -1,6 +1,7 @@
 import '../global.css'
+import 'react-native-reanimated'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import {
@@ -11,6 +12,7 @@ import {
   Inter_700Bold,
   Inter_900Black,
 } from '@expo-google-fonts/inter'
+
 import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono'
 import * as SplashScreen from 'expo-splash-screen'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -87,6 +89,7 @@ function Navigation(): React.JSX.Element {
 function RootLayout(): React.JSX.Element | null {
   const setSession = useAuthStore((s) => s.setSession)
   const setLoading = useAuthStore((s) => s.setLoading)
+
   const [showSplash, setShowSplash] = useState(true)
 
   const [fontsLoaded, fontError] = useFonts({
@@ -100,18 +103,24 @@ function RootLayout(): React.JSX.Element | null {
 
   // Listen for Supabase auth state changes
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
+        setLoading(false)
       },
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [setSession, setLoading])
 
   // Hide splash once fonts are ready

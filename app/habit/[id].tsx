@@ -31,7 +31,13 @@ export default function HabitDetailScreen(): React.JSX.Element {
     )
   }
 
-  if (!habit) return null
+  if (!habit) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center' }]}>
+        <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.medium }]}>Habit not found</Text>
+      </SafeAreaView>
+    )
+  }
 
   const streak = calculateStreak(checkIns?.map(c => c.checked_date) || [])
 

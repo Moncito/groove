@@ -44,16 +44,18 @@ export function useCheckIn() {
       // Cancel relevant queries
       await queryClient.cancelQueries({ queryKey: ['check-ins', input.habitId] })
       await queryClient.cancelQueries({ queryKey: ['check-ins', 'today', userId] })
+      await queryClient.cancelQueries({ queryKey: ['all-check-ins', userId] })
 
       const previousHabitCheckIns = queryClient.getQueryData<CheckIn[]>(['check-ins', input.habitId])
       const previousTodayCheckIns = queryClient.getQueryData<CheckIn[]>(['check-ins', 'today', userId])
+      const previousAllCheckIns = queryClient.getQueryData<CheckIn[]>(['all-check-ins', userId])
 
       const optimistic: CheckIn = {
         id: `optimistic-${Date.now()}`,
         habit_id: input.habitId,
         user_id: userId,
         checked_date: formatCheckedDate(new Date()),
-        proof_url: input.proofUrl ?? null,
+        proof_url: input.photoUri ? null : null,
         note: input.note ?? null,
         created_at: new Date().toISOString(),
       }
@@ -70,15 +72,23 @@ export function useCheckIn() {
         (old) => [...(old ?? []), optimistic],
       )
 
-      return { previousHabitCheckIns, previousTodayCheckIns }
+      // Update all check-ins for Profile Screen (Optimistic!)
+      queryClient.setQueryData<CheckIn[]>(
+        ['all-check-ins', userId],
+        (old) => [...(old ?? []), optimistic],
+      )
+
+      return { previousHabitCheckIns, previousTodayCheckIns, previousAllCheckIns }
     },
     onError: (_err, input, context) => {
       queryClient.setQueryData(['check-ins', input.habitId], context?.previousHabitCheckIns)
       queryClient.setQueryData(['check-ins', 'today', userId], context?.previousTodayCheckIns)
+      queryClient.setQueryData(['all-check-ins', userId], context?.previousAllCheckIns)
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: ['check-ins', input.habitId] })
       queryClient.invalidateQueries({ queryKey: ['check-ins', 'today', userId] })
+      queryClient.invalidateQueries({ queryKey: ['all-check-ins', userId] })
     },
   })
 }

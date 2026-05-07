@@ -9,7 +9,7 @@ export async function uploadHabitProof(uri: string, userId: string): Promise<str
 
   // Read file as base64
   const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
+    encoding: 'base64',
   })
 
   const { data, error } = await supabase.storage

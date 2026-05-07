@@ -37,7 +37,6 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-      "expo-dev-client",
       "@sentry/react-native/expo"
     ],
     "experiments": {
