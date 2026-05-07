@@ -38,16 +38,17 @@ export default function ProfileScreen(): React.JSX.Element {
   const { allCheckedDates, habitDatesMap } = React.useMemo(() => {
     if (!allCheckIns) return { allCheckedDates: [], habitDatesMap: {} }
     
-    const allDates = allCheckIns.map(c => c.checked_date)
     const hMap: Record<string, string[]> = {}
-    
-    if (habits) {
-      habits.forEach(h => {
-        hMap[h.id] = allCheckIns
-          .filter(c => c.habit_id === h.id)
-          .map(c => c.checked_date)
-      })
-    }
+    const allDates: string[] = []
+
+    allCheckIns.forEach((ci) => {
+      // 1. Collect all dates for the unified grid
+      allDates.push(ci.checked_date)
+
+      // 2. Build map for individual habit grids
+      if (!hMap[ci.habit_id]) hMap[ci.habit_id] = []
+      hMap[ci.habit_id].push(ci.checked_date)
+    })
     
     return { allCheckedDates: allDates, habitDatesMap: hMap }
   }, [allCheckIns, habits])

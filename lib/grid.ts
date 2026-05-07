@@ -31,9 +31,8 @@ export function generateGridData(checkIns: { date: string; count: number }[] = [
     // Optimization: Pre-map check-ins for O(1) lookup
     const checkInMap = new Map<string, number>()
     checkIns.forEach(c => {
-      if (c && c.date) {
-        checkInMap.set(c.date, c.count)
-      }
+      const current = checkInMap.get(c.date) || 0
+      checkInMap.set(c.date, current + (Number(c.count) || 0))
     })
 
     return allDays.map((date, index) => {

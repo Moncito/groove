@@ -31,13 +31,24 @@ export const HabitGrid = React.memo(({
   // We MUST normalize dates to YYYY-MM-DD format for the grid to match them
   const normalizedCheckIns = useMemo(() => {
     const counts: Record<string, number> = {}
+
+    const normalize = (dateVal: string | Date): string => {
+      if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
+        return dateVal
+      }
+      const d = typeof dateVal === 'string' ? new Date(dateVal) : dateVal
+      // Use local date parts to avoid timezone shifts
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
     
     // Process string array (e.g. ISO strings from Supabase)
     if (checkInDates && checkInDates.length > 0) {
       checkInDates.forEach(date => {
         if (typeof date === 'string') {
-          // Extract only the date part: "2024-05-07T..." -> "2024-05-07"
-          const dateOnly = date.split('T')[0]
+          const dateOnly = normalize(date)
           counts[dateOnly] = (counts[dateOnly] || 0) + 1
         }
       })
@@ -46,7 +57,7 @@ export const HabitGrid = React.memo(({
     // Process existing checkIns array if any
     if (checkIns && checkIns.length > 0) {
       checkIns.forEach(ci => {
-        const dateOnly = ci.date.split('T')[0]
+        const dateOnly = normalize(ci.date)
         counts[dateOnly] = (counts[dateOnly] || 0) + ci.count
       })
     }

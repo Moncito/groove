@@ -103,20 +103,24 @@ function RootLayout(): React.JSX.Element | null {
 
   // Listen for Supabase auth state changes
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-      setSession(session)
-      setLoading(false)
-    })
-
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: string, session: any) => {
+      (_event, session) => {
         setSession(session)
+        setLoading(false)
       },
     )
 
-
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [setSession, setLoading])
 
   // Hide splash once fonts are ready
