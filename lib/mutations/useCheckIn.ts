@@ -53,7 +53,7 @@ export function useCheckIn() {
         habit_id: input.habitId,
         user_id: userId,
         checked_date: formatCheckedDate(new Date()),
-        proof_url: input.proofUrl ?? null,
+        proof_url: input.photoUri ? null : null,
         note: input.note ?? null,
         created_at: new Date().toISOString(),
       }
@@ -79,6 +79,7 @@ export function useCheckIn() {
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: ['check-ins', input.habitId] })
       queryClient.invalidateQueries({ queryKey: ['check-ins', 'today', userId] })
+      queryClient.invalidateQueries({ queryKey: ['all-check-ins', userId] })
     },
   })
 }
