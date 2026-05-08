@@ -92,3 +92,55 @@ export function useCheckIn() {
     },
   })
 }
+
+export function useUnCheck() {
+  const queryClient = useQueryClient()
+  const userId = useAuthStore((s) => s.user?.id ?? '')
+
+  return useMutation({
+    mutationFn: async (habitId: string) => {
+      const today = formatCheckedDate(new Date())
+      const { error } = await supabase
+        .from('check_ins')
+        .delete()
+        .eq('habit_id', habitId)
+        .eq('user_id', userId)
+        .eq('checked_date', today)
+
+      if (error) throw error
+    },
+    onMutate: async (habitId) => {
+      await queryClient.cancelQueries({ queryKey: ['check-ins', habitId] })
+      await queryClient.cancelQueries({ queryKey: ['check-ins', 'today', userId] })
+      await queryClient.cancelQueries({ queryKey: ['all-check-ins', userId] })
+
+      const prevHabit = queryClient.getQueryData<CheckIn[]>(['check-ins', habitId])
+      const prevToday = queryClient.getQueryData<CheckIn[]>(['check-ins', 'today', userId])
+      const prevAll = queryClient.getQueryData<CheckIn[]>(['all-check-ins', userId])
+
+      const today = formatCheckedDate(new Date())
+
+      queryClient.setQueryData<CheckIn[]>(['check-ins', habitId], (old) => 
+        old?.filter(c => c.checked_date !== today)
+      )
+      queryClient.setQueryData<CheckIn[]>(['check-ins', 'today', userId], (old) => 
+        old?.filter(c => c.habit_id !== habitId)
+      )
+      queryClient.setQueryData<CheckIn[]>(['all-check-ins', userId], (old) => 
+        old?.filter(c => !(c.habit_id === habitId && c.checked_date === today))
+      )
+
+      return { prevHabit, prevToday, prevAll }
+    },
+    onError: (_err, habitId, context) => {
+      queryClient.setQueryData(['check-ins', habitId], context?.prevHabit)
+      queryClient.setQueryData(['check-ins', 'today', userId], context?.prevToday)
+      queryClient.setQueryData(['all-check-ins', userId], context?.prevAll)
+    },
+    onSettled: (_data, _err, habitId) => {
+      queryClient.invalidateQueries({ queryKey: ['check-ins', habitId] })
+      queryClient.invalidateQueries({ queryKey: ['check-ins', 'today', userId] })
+      queryClient.invalidateQueries({ queryKey: ['all-check-ins', userId] })
+    }
+  })
+}

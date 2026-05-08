@@ -31,6 +31,7 @@ export const habitSchema = z.object({
   color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color hex'),
   frequency: z.enum(['daily', 'custom']),
   customDays: z.array(z.number().min(0).max(6)).optional(),
+  type: z.enum(['activity', 'output']).default('activity'),
 })
 
 export type SignUpSchema = z.infer<typeof signUpSchema>

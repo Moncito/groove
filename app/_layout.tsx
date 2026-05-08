@@ -23,6 +23,7 @@ import { SENTRY_DSN } from '@/constants/config'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { colors } from '@/theme/tokens'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import CustomSplashScreen from '@/components/SplashScreen'
 
 // ---------------------------------------------------------------------------
@@ -141,12 +142,14 @@ function RootLayout(): React.JSX.Element | null {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* <PostHogProvider client={posthog}> */}
-        <StatusBar style="dark" backgroundColor={colors.background} />
-        <Navigation />
-      {/* </PostHogProvider> */}
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        {/* <PostHogProvider client={posthog}> */}
+          <StatusBar style="dark" backgroundColor={colors.background} />
+          <Navigation />
+        {/* </PostHogProvider> */}
+      </QueryClientProvider>
+    </SafeAreaProvider>
   )
 }
 

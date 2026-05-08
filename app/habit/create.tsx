@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   View,
   Text,
@@ -11,11 +11,12 @@ import {
   ScrollView,
   Alert,
   FlatList,
+  SafeAreaView,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Feather } from '@expo/vector-icons'
 import { colors, typography, spacing, radius } from '@/theme/tokens'
 import { habitSchema, type HabitSchema } from '@/lib/validation'
 import { useCreateHabit } from '@/lib/mutations/useCreateHabit'
@@ -41,11 +42,14 @@ export default function CreateHabitScreen(): React.JSX.Element {
       color: DEFAULT_HABIT_COLORS[0],
       frequency: 'daily',
       customDays: [],
+      type: 'activity',
     },
   })
 
+  const formValues = watch()
   const frequency = watch('frequency')
   const customDays = watch('customDays') || []
+  const habitType = watch('type')
 
   const onSubmit = async (data: HabitSchema) => {
     try {
@@ -70,15 +74,36 @@ export default function CreateHabitScreen(): React.JSX.Element {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={[styles.backText, { fontFamily: typography.fontFamily.bold }]}>CANCEL</Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { fontFamily: typography.fontFamily.black }]}>NEW HABIT</Text>
-        <View style={{ width: 60 }} />
-      </View>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={[styles.backText, { fontFamily: typography.fontFamily.bold }]}>CANCEL</Text>
+          </TouchableOpacity>
+          <Text style={[styles.title, { fontFamily: typography.fontFamily.black }]}>NEW HABIT</Text>
+          <View style={{ width: 60 }} />
+        </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Live Preview Card */}
+          <View style={styles.previewContainer}>
+            <View style={[styles.previewCard, { borderColor: formValues.color || colors.border }]}>
+              <View style={[styles.previewIconBox, { backgroundColor: formValues.color || colors.border }]}>
+                <Feather name={formValues.icon as any} size={24} color="white" />
+              </View>
+              <View style={styles.previewTextContent}>
+                <Text style={[styles.previewName, { fontFamily: typography.fontFamily.bold }]} numberOfLines={1}>
+                  {formValues.name || 'Habit Name'}
+                </Text>
+                <Text style={[styles.previewSub, { fontFamily: typography.fontFamily.medium }]}>
+                  {formValues.frequency === 'daily' ? 'DAILY' : 'CUSTOM'} • {formValues.type.toUpperCase()}
+                </Text>
+              </View>
+              <View style={[styles.previewCheck, { borderColor: formValues.color || colors.border }]}>
+                 <Feather name="check" size={16} color={formValues.color} />
+              </View>
+            </View>
+          </View>
+
           <View style={styles.form}>
+            {/* Name Field */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { fontFamily: typography.fontFamily.medium }]}>NAME</Text>
               <Controller
@@ -91,12 +116,14 @@ export default function CreateHabitScreen(): React.JSX.Element {
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
+                    placeholderTextColor={colors.inkTertiary}
                   />
                 )}
               />
               {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
             </View>
 
+            {/* Icon Picker */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { fontFamily: typography.fontFamily.medium }]}>ICON</Text>
               <Controller
@@ -114,10 +141,11 @@ export default function CreateHabitScreen(): React.JSX.Element {
                         onPress={() => onChange(item)}
                         style={[
                           styles.iconOption,
-                          value === item && { backgroundColor: colors.surface, borderColor: colors.ink },
+                          { backgroundColor: formValues.color },
+                          value !== item && { opacity: 0.3 }
                         ]}
                       >
-                        <Text style={{ fontSize: 24 }}>{item}</Text>
+                        <Feather name={item as any} size={24} color="white" />
                       </TouchableOpacity>
                     )}
                   />
@@ -125,6 +153,7 @@ export default function CreateHabitScreen(): React.JSX.Element {
               />
             </View>
 
+            {/* Color Picker */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { fontFamily: typography.fontFamily.medium }]}>COLOR</Text>
               <Controller
@@ -148,6 +177,53 @@ export default function CreateHabitScreen(): React.JSX.Element {
               />
             </View>
 
+            {/* Habit Type Selector */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { fontFamily: typography.fontFamily.medium }]}>HABIT TYPE</Text>
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    habitType === 'activity' && { backgroundColor: colors.ink },
+                  ]}
+                  onPress={() => setValue('type', 'activity')}
+                >
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      { fontFamily: typography.fontFamily.bold },
+                      habitType === 'activity' && { color: colors.background },
+                    ]}
+                  >
+                    ACTIVITY
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    habitType === 'output' && { backgroundColor: colors.ink },
+                  ]}
+                  onPress={() => setValue('type', 'output')}
+                >
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      { fontFamily: typography.fontFamily.bold },
+                      habitType === 'output' && { color: colors.background },
+                    ]}
+                  >
+                    OUTPUT
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.typeDesc}>
+                {habitType === 'activity' 
+                  ? 'Simple check-in to track consistency.' 
+                  : 'Check-in with proof (photo, link, or attachment).'}
+              </Text>
+            </View>
+
+            {/* Frequency Selector */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { fontFamily: typography.fontFamily.medium }]}>FREQUENCY</Text>
               <View style={styles.frequencyRow}>
@@ -268,6 +344,46 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
   },
+  previewContainer: {
+    marginBottom: spacing.xl,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    gap: spacing.md,
+  },
+  previewIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewTextContent: {
+    flex: 1,
+    gap: 2,
+  },
+  previewName: {
+    fontSize: 18,
+    color: colors.ink,
+  },
+  previewSub: {
+    fontSize: 12,
+    color: colors.inkSecondary,
+    letterSpacing: 0.5,
+  },
+  previewCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   form: {
     gap: spacing.xl,
   },
@@ -301,8 +417,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
   },
   colorGrid: {
     flexDirection: 'row',
@@ -317,6 +431,28 @@ const styles = StyleSheet.create({
   colorOptionSelected: {
     borderWidth: 3,
     borderColor: colors.ink,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  typeButton: {
+    flex: 1,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.ink,
+  },
+  typeButtonText: {
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.ink,
+  },
+  typeDesc: {
+    fontSize: 12,
+    color: colors.inkSecondary,
+    lineHeight: 18,
   },
   frequencyRow: {
     flexDirection: 'row',
@@ -358,6 +494,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: spacing.lg,
+    borderRadius: radius.md,
   },
   submitButtonText: {
     fontSize: 16,

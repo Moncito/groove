@@ -9,6 +9,7 @@ interface CreateHabitInput {
   color: string
   frequency: 'daily' | 'custom'
   customDays?: number[]
+  type: 'activity' | 'output'
 }
 
 async function createHabit(input: CreateHabitInput, userId: string): Promise<Habit> {
@@ -21,8 +22,9 @@ async function createHabit(input: CreateHabitInput, userId: string): Promise<Hab
       color: input.color,
       frequency: input.frequency,
       custom_days: input.customDays ?? null,
+      type: input.type,
     })
-    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at')
+    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at, type')
     .single()
 
   if (error) throw error

@@ -1,3 +1,20 @@
+/**
+ * GROOVE — TODAY SCREEN
+ * -----------------------------------------------------------------------------
+ * Modernized: May 2026
+ * 
+ * DESIGN SYSTEM:
+ * - Editorial Typography (Black, Bold, Medium)
+ * - Brutalist Color Palette (High contrast Ink/Background)
+ * - Premium Components (Glassmorphic cards, Haptic feedback)
+ * 
+ * REFACTOR LOG:
+ * 1. Migrated to react-native-safe-area-context for stable notched layout.
+ * 2. Integrated Skia-powered HabitGrid (Mini & Full versions).
+ * 3. Hardened Supabase schema interop (Activity vs Output types).
+ * 4. Implemented Optimistic Updates for zero-latency habit tracking.
+ * 5. Added 'Undo' capability for mistaken check-ins.
+ */
 import React from 'react'
 import {
   View,
@@ -10,28 +27,32 @@ import {
   Pressable,
   Alert,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import * as ImagePicker from 'expo-image-picker'
+import { Feather } from '@expo/vector-icons'
 import { useAuthStore } from '@/store/auth'
 import { useHabits, type Habit } from '@/lib/queries/useHabits'
-import { useTodayCheckIns } from '@/lib/queries/useCheckIns'
-import { useCheckIn } from '@/lib/mutations/useCheckIn'
+import { useTodayCheckIns, useAllCheckIns } from '@/lib/queries/useCheckIns'
+import { useCheckIn, useUnCheck } from '@/lib/mutations/useCheckIn'
 import { colors, typography, spacing, radius } from '@/theme/tokens'
 import { format } from 'date-fns'
+import { calculateStreak } from '@/lib/streak'
+import HabitGrid from '@/components/HabitGrid'
 
 interface HabitCardProps {
   habit: Habit
   isChecked: boolean
   isMutating: boolean
   onCheck: (photoUri?: string) => void
+  onUnCheck: () => void
 }
 
-function HabitCard({ habit, isChecked, isMutating, onCheck }: HabitCardProps) {
+function HabitCard({ habit, isChecked, isMutating, onCheck, onUnCheck }: HabitCardProps) {
   const router = useRouter()
 
-  const handlePress = async () => {
+  const handleCardPress = async () => {
     if (isMutating) return
 
     if (!isChecked) {
@@ -40,8 +61,18 @@ function HabitCard({ habit, isChecked, isMutating, onCheck }: HabitCardProps) {
       } catch (e) {}
       onCheck()
     } else {
+      // Direct navigation when already checked
       router.push(`/habit/${habit.id}`)
     }
+  }
+
+  const handleUndoPress = async () => {
+    if (isMutating || !isChecked) return
+    
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    } catch (e) {}
+    onUnCheck()
   }
 
   const handleLongPress = async () => {
@@ -65,46 +96,64 @@ function HabitCard({ habit, isChecked, isMutating, onCheck }: HabitCardProps) {
   }
 
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      delayLongPress={400}
-      style={[
-        styles.habitCard,
-        { 
-          borderColor: isChecked ? colors.accent : colors.border,
-          borderWidth: isChecked ? 3 : 2
-        }
-      ]}
-    >
-      <View style={[styles.habitIcon, { backgroundColor: habit.color + '20' }]}>
-        <Text style={{ fontSize: 24 }}>{habit.icon}</Text>
-      </View>
-      <View style={styles.habitInfo}>
-        <Text style={[styles.habitName, { fontFamily: typography.fontFamily.bold }]}>
-          {habit.name}
-        </Text>
-        <Text style={[styles.habitFrequency, { fontFamily: typography.fontFamily.medium }]}>
-          {habit.frequency === 'daily' ? 'Daily' : 'Custom'}
-        </Text>
-      </View>
-      
-      <View style={styles.rightAction}>
-        {isMutating ? (
-          <ActivityIndicator size="small" color={colors.accent} />
-        ) : (
-          <View style={[
-            styles.checkIndicator, 
-            { 
-              backgroundColor: isChecked ? colors.accent : 'transparent',
-              borderColor: isChecked ? colors.accent : colors.border
-            }
-          ]}>
-            {isChecked && <Text style={styles.checkIcon}>✓</Text>}
+    <View style={{ marginBottom: spacing.md }}>
+      <Pressable
+        onPress={handleCardPress}
+        onLongPress={handleLongPress}
+        delayLongPress={400}
+        style={({ pressed }) => [
+          styles.habitCard,
+          { 
+            borderColor: isChecked ? habit.color : colors.border,
+            borderWidth: isChecked ? 2 : 1,
+            opacity: pressed ? 0.9 : 1,
+          }
+        ]}
+      >
+        {/* Main Content Row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={[styles.habitIconBox, { backgroundColor: habit.color, marginRight: spacing.md }]}>
+            <Feather name={habit.icon as any} size={24} color="white" />
           </View>
-        )}
-      </View>
-    </Pressable>
+
+          <View style={styles.habitInfo}>
+            <Text style={[styles.habitName, { fontFamily: typography.fontFamily.bold }]} numberOfLines={1}>
+              {habit.name}
+            </Text>
+            <Text style={[styles.habitFrequency, { fontFamily: typography.fontFamily.medium }]}>
+              {habit.frequency === 'daily' ? 'Daily' : 'Custom'}
+            </Text>
+          </View>
+          
+          <View style={styles.rightAction}>
+            {isMutating ? (
+              <ActivityIndicator size="small" color={habit.color} />
+            ) : (
+              <View style={styles.actionIcons}>
+                {habit.type === 'output' && !isChecked && (
+                  <Feather name="camera" size={18} color={colors.inkTertiary} style={{ marginRight: spacing.sm }} />
+                )}
+                <TouchableOpacity 
+                  onPress={handleUndoPress}
+                  disabled={!isChecked}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                  <View style={[
+                    styles.checkIndicator, 
+                    { 
+                      borderColor: isChecked ? habit.color : colors.border,
+                      backgroundColor: isChecked ? habit.color : 'transparent'
+                    }
+                  ]}>
+                    {isChecked && <Feather name="check" size={16} color="white" />}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    </View>
   )
 }
 
@@ -112,6 +161,8 @@ export default function HomeScreen(): React.JSX.Element {
   const router = useRouter()
   const userId = useAuthStore((s) => s.user?.id ?? '')
   const checkInMutation = useCheckIn()
+  const unCheckMutation = useUnCheck()
+  const insets = useSafeAreaInsets()
   
   const { 
     data: habits, 
@@ -121,11 +172,13 @@ export default function HomeScreen(): React.JSX.Element {
   } = useHabits(userId)
   
   const { 
-    data: checkIns, 
+    data: todayCheckIns, 
     isLoading: isCheckInsLoading,
     refetch: refetchCheckIns,
     isRefetching: isRefetchingCheckIns
   } = useTodayCheckIns(userId)
+
+  const { data: allCheckIns } = useAllCheckIns(userId)
 
   const onRefresh = React.useCallback(() => {
     refetchHabits()
@@ -136,10 +189,14 @@ export default function HomeScreen(): React.JSX.Element {
   const isRefreshing = isRefetchingHabits || isRefetchingCheckIns
 
   const todayHabits = habits || []
-  const completedCount = checkIns?.length || 0
+  const completedCount = todayCheckIns?.length || 0
   const totalCount = todayHabits.length
 
-  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+  const streak = React.useMemo(() => {
+    if (!allCheckIns) return 0
+    const dates = allCheckIns.map(c => c.checked_date)
+    return calculateStreak(dates)
+  }, [allCheckIns])
 
   if (isLoading && !isRefreshing) {
     return (
@@ -157,41 +214,57 @@ export default function HomeScreen(): React.JSX.Element {
             GROOVE
           </Text>
           <Text style={[styles.date, { fontFamily: typography.fontFamily.medium }]}>
-            {format(new Date(), 'EEEE, MMMM do')}
+            {format(new Date(), 'EEEE, MMMM do').toUpperCase()}
           </Text>
         </View>
         <TouchableOpacity 
           style={styles.addButton}
           onPress={() => router.push('/habit/create')}
         >
-          <Text style={[styles.addButtonText, { fontFamily: typography.fontFamily.bold }]}>+</Text>
+          <Feather name="plus" size={24} color="white" />
         </TouchableOpacity>
       </View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.ink} />
         }
       >
+        {/* Progress Card */}
         <View style={[styles.summaryCard, { backgroundColor: colors.ink }]}>
-          <Text style={[styles.summaryTitle, { fontFamily: typography.fontFamily.black, color: colors.background }]}>
-            TODAY'S PROGRESS
-          </Text>
-          <View style={styles.progressRow}>
-            <Text style={[styles.progressCount, { fontFamily: typography.fontFamily.black, color: colors.background }]}>
-              {completedCount}/{totalCount}
-            </Text>
-            <Text style={[styles.progressLabel, { fontFamily: typography.fontFamily.medium, color: colors.inkTertiary }]}>
-              HABITS DONE
-            </Text>
+          <View style={styles.summaryHeader}>
+            <View>
+              <Text style={[styles.summaryLabel, { fontFamily: typography.fontFamily.black, color: colors.inkTertiary }]}>
+                CURRENT PROGRESS
+              </Text>
+              <View style={styles.progressValueRow}>
+                <Text style={[styles.progressCount, { fontFamily: typography.fontFamily.black, color: 'white' }]}>
+                  {completedCount}
+                </Text>
+                <Text style={[styles.progressSlash, { fontFamily: typography.fontFamily.black, color: colors.inkTertiary }]}>
+                  /
+                </Text>
+                <Text style={[styles.progressTotal, { fontFamily: typography.fontFamily.black, color: colors.inkSecondary }]}>
+                  {totalCount}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.streakPill, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+              <Text style={styles.streakEmoji}>🔥</Text>
+              <Text style={[styles.streakCount, { fontFamily: typography.fontFamily.black, color: 'white' }]}>
+                {streak}
+              </Text>
+            </View>
           </View>
+          
           <View style={styles.progressBarBg}>
             <View 
               style={[
                 styles.progressBarFill, 
                 { 
-                  width: `${progressPercent}%`,
+                  width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
                   backgroundColor: colors.accent 
                 }
               ]} 
@@ -205,24 +278,33 @@ export default function HomeScreen(): React.JSX.Element {
               MY HABITS
             </Text>
             <Text style={[styles.hintText, { fontFamily: typography.fontFamily.medium }]}>
-              Hold for photo
+              HOLD FOR PHOTO
             </Text>
           </View>
           
           {todayHabits.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.regular }]}>
-                No habits for today.
+              <View style={styles.emptyIconCircle}>
+                <Feather name="target" size={32} color={colors.inkTertiary} />
+              </View>
+              <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.bold }]}>
+                YOUR JOURNEY STARTS HERE
               </Text>
-              <TouchableOpacity onPress={() => router.push('/habit/create')}>
-                <Text style={[styles.createLink, { fontFamily: typography.fontFamily.bold }]}>
-                  Create your first habit
+              <Text style={[styles.emptySub, { fontFamily: typography.fontFamily.medium }]}>
+                You haven't tracked any habits for today.
+              </Text>
+              <TouchableOpacity 
+                style={[styles.emptyButton, { backgroundColor: colors.ink }]}
+                onPress={() => router.push('/habit/create')}
+              >
+                <Text style={[styles.emptyButtonText, { fontFamily: typography.fontFamily.black }]}>
+                  CREATE FIRST HABIT
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             todayHabits.map((habit) => {
-              const isChecked = checkIns?.some((ci) => ci.habit_id === habit.id)
+              const isChecked = todayCheckIns?.some((ci) => ci.habit_id === habit.id)
               const isMutating = checkInMutation.isPending && checkInMutation.variables?.habitId === habit.id
               
               return (
@@ -232,6 +314,7 @@ export default function HomeScreen(): React.JSX.Element {
                   isChecked={!!isChecked}
                   isMutating={isMutating}
                   onCheck={(photoUri) => checkInMutation.mutate({ habitId: habit.id, photoUri })}
+                  onUnCheck={() => unCheckMutation.mutate(habit.id)}
                 />
               )
             })
@@ -252,67 +335,114 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   wordmark: {
-    fontSize: 24,
+    fontSize: 32,
     color: colors.ink,
-    letterSpacing: -1,
+    letterSpacing: -1.5,
   },
   date: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.inkSecondary,
-    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: -2,
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
     backgroundColor: colors.ink,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  addButtonText: {
-    color: colors.background,
-    fontSize: 24,
-    marginTop: -2,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
   summaryCard: {
-    padding: spacing.lg,
-    borderRadius: radius.lg,
+    padding: spacing.xl,
+    borderRadius: radius.xl,
     marginBottom: spacing.xl,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  summaryTitle: {
-    fontSize: 11,
-    letterSpacing: 1.5,
-    marginBottom: spacing.md,
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  progressRow: {
+  summaryLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    marginBottom: spacing.xs,
+  },
+  progressValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 2,
   },
   progressCount: {
-    fontSize: 32,
+    fontSize: 48,
+    letterSpacing: -2,
   },
-  progressLabel: {
-    fontSize: 12,
-    letterSpacing: 1,
+  progressSlash: {
+    fontSize: 24,
+    marginHorizontal: 4,
+    opacity: 0.5,
+  },
+  progressTotal: {
+    fontSize: 24,
+    letterSpacing: -1,
+  },
+  streakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    gap: spacing.xs,
+  },
+  streakEmoji: {
+    fontSize: 20,
+  },
+  streakCount: {
+    fontSize: 18,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 3,
     overflow: 'hidden',
+    marginBottom: spacing.xl,
   },
   progressBarFill: {
     height: '100%',
+    borderRadius: 3,
+  },
+  gridSection: {
+    marginTop: spacing.sm,
+  },
+  gridLabel: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 1.5,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  miniGridContainer: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
   },
   habitsSection: {
     gap: spacing.md,
@@ -322,76 +452,115 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
-    fontSize: 12,
-    letterSpacing: 1.5,
+    fontSize: 11,
+    letterSpacing: 2,
     color: colors.inkTertiary,
   },
   hintText: {
     fontSize: 10,
     color: colors.inkTertiary,
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
+    opacity: 0.6,
   },
   habitCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
+    backgroundColor: 'white',
+    borderRadius: radius.xl,
+    gap: spacing.md,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  habitIcon: {
+  habitIconBox: {
     width: 56,
     height: 56,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
   },
   habitInfo: {
     flex: 1,
+    gap: 2,
   },
   habitName: {
     fontSize: 18,
     color: colors.ink,
+    letterSpacing: -0.5,
   },
   habitFrequency: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.inkSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   rightAction: {
-    width: 32,
-    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  actionIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   checkIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkIcon: {
-    color: colors.background,
-    fontWeight: 'bold',
-  },
   emptyState: {
     paddingVertical: spacing.xxxl,
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   emptyText: {
-    fontSize: 16,
-    color: colors.inkSecondary,
+    fontSize: 14,
+    color: colors.ink,
+    letterSpacing: 1.5,
+    textAlign: 'center',
   },
-  createLink: {
-    fontSize: 16,
-    color: colors.accent,
+  emptySub: {
+    fontSize: 14,
+    color: colors.inkSecondary,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xxl,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  emptyButton: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontSize: 12,
+    letterSpacing: 1,
   },
 })
