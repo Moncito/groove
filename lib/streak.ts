@@ -31,9 +31,32 @@ export function calculateStreak(checkedDates: string[], today: Date = new Date()
   return streak
 }
 
-/**
- * Calculate total number of unique check-in days.
- */
 export function calculateTotalDays(checkedDates: string[]): number {
   return new Set(checkedDates).size
+}
+
+/**
+ * Calculate the longest historical streak from 'yyyy-MM-dd' dates.
+ */
+export function calculateBestStreak(checkedDates: string[]): number {
+  if (checkedDates.length === 0) return 0
+
+  const unique = [...new Set(checkedDates)].sort()
+  let maxStreak = 1
+  let currentStreak = 1
+
+  for (let i = 1; i < unique.length; i++) {
+    const diff = differenceInCalendarDays(
+      parseISO(unique[i]),
+      parseISO(unique[i - 1]),
+    )
+    if (diff === 1) {
+      currentStreak++
+    } else {
+      maxStreak = Math.max(maxStreak, currentStreak)
+      currentStreak = 1
+    }
+  }
+
+  return Math.max(maxStreak, currentStreak)
 }

@@ -17,11 +17,10 @@ import { useHabit } from '@/lib/queries/useHabits'
 import { useCheckIns } from '@/lib/queries/useCheckIns'
 import { colors, typography, spacing, radius } from '@/theme/tokens'
 import { friendlyDate } from '@/lib/dates'
-import { calculateStreak } from '@/lib/streak'
+import { calculateStreak, calculateBestStreak } from '@/lib/streak'
 import { HabitGrid } from '@/components/HabitGrid'
 import * as Haptics from 'expo-haptics'
-
-const { width } = Dimensions.get('window')
+import { subDays, isAfter, parseISO } from 'date-fns'
 
 export default function HabitDetailScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -60,8 +59,13 @@ export default function HabitDetailScreen(): React.JSX.Element {
 
   const checkInDates = checkIns?.map(c => c.checked_date) || []
   const streak = calculateStreak(checkInDates)
+  const bestStreak = calculateBestStreak(checkInDates)
   const totalChecks = checkInDates.length
-  const completionRate = totalChecks > 0 ? Math.round((totalChecks / 30) * 100) : 0 // Simple 30-day rate for now
+  
+  // Only count checks from the last 30 days for completion rate
+  const thirtyDaysAgo = subDays(new Date(), 30)
+  const recentChecks = checkInDates.filter(d => isAfter(parseISO(d), thirtyDaysAgo))
+  const completionRate = Math.min(100, Math.round((recentChecks.length / 30) * 100))
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -77,7 +81,13 @@ export default function HabitDetailScreen(): React.JSX.Element {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: spacing.xxl + insets.bottom }
+        ]} 
+        showsVerticalScrollIndicator={false}
+      >
         {/* Habit Hero */}
         <View style={styles.hero}>
           <View style={[styles.iconContainer, { backgroundColor: habit.color }]}>
@@ -110,7 +120,7 @@ export default function HabitDetailScreen(): React.JSX.Element {
               <Text style={[styles.statLabel, { fontFamily: typography.fontFamily.medium }]}>RATE</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { fontFamily: typography.fontFamily.bold }]}>{streak}</Text>
+              <Text style={[styles.statValue, { fontFamily: typography.fontFamily.bold }]}>{bestStreak}</Text>
               <Text style={[styles.statLabel, { fontFamily: typography.fontFamily.medium }]}>BEST</Text>
             </View>
           </View>

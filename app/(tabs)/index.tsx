@@ -25,7 +25,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
-  Alert,
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -226,7 +225,10 @@ export default function HomeScreen(): React.JSX.Element {
       </View>
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: spacing.xxxl + insets.bottom }
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.ink} />
@@ -305,8 +307,10 @@ export default function HomeScreen(): React.JSX.Element {
           ) : (
             todayHabits.map((habit) => {
               const isChecked = todayCheckIns?.some((ci) => ci.habit_id === habit.id)
-              const isMutating = checkInMutation.isPending && checkInMutation.variables?.habitId === habit.id
-              
+              const isMutating = 
+                (checkInMutation.isPending && checkInMutation.variables?.habitId === habit.id) ||
+                (unCheckMutation.isPending && unCheckMutation.variables === habit.id)
+                
               return (
                 <HabitCard 
                   key={habit.id}
@@ -427,22 +431,6 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: 3,
-  },
-  gridSection: {
-    marginTop: spacing.sm,
-  },
-  gridLabel: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  miniGridContainer: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
   },
   habitsSection: {
     gap: spacing.md,

@@ -15,6 +15,7 @@ export interface GridDay {
   intensity: GridIntensity
   count: number
   monthLabel?: string
+  color?: string
 }
 
 /**
@@ -29,15 +30,19 @@ export function generateGridData(checkIns: { date: string; count: number }[] = [
     const allDays = eachDayOfInterval({ start: startDate, end: endDate })
 
     // Optimization: Pre-map check-ins for O(1) lookup
-    const checkInMap = new Map<string, number>()
+    const checkInMap = new Map<string, { count: number; color?: string }>()
     checkIns.forEach(c => {
-      const current = checkInMap.get(c.date) || 0
-      checkInMap.set(c.date, current + (Number(c.count) || 0))
+      const current = checkInMap.get(c.date) || { count: 0 }
+      checkInMap.set(c.date, { 
+        count: current.count + (Number(c.count) || 0),
+        color: c.color || current.color
+      })
     })
 
     return allDays.map((date, index) => {
       const dateString = format(date, 'yyyy-MM-dd')
-      const count = checkInMap.get(dateString) || 0
+      const data = checkInMap.get(dateString) || { count: 0 }
+      const count = data.count
       
       // Add month labels for the first day of each month
       let monthLabel: string | undefined
@@ -62,6 +67,7 @@ export function generateGridData(checkIns: { date: string; count: number }[] = [
         intensity,
         count,
         monthLabel,
+        color: data.color,
       }
     })
   } catch (error) {

@@ -14,15 +14,15 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  StyleSheet,
   ActivityIndicator,
+  RefreshControl,
+  Image,
   Alert,
   Modal,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
 } from 'react-native'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
@@ -58,18 +58,16 @@ export default function ProfileScreen(): React.JSX.Element {
     }, {} as Record<string, string>)
 
     const stats: Record<string, { dates: string[]; total: number; streak: number }> = {}
-    const dateColorMap: Record<string, { count: number; color: string }> = {}
+    const dateHabitsMap: Record<string, { count: number; habits: string[] }> = {}
 
     allCheckIns.forEach((ci) => {
       const date = ci.checked_date
-      const color = habitColorMap[ci.habit_id] || colors.accent
 
-      if (!dateColorMap[date]) {
-        dateColorMap[date] = { count: 0, color }
+      if (!dateHabitsMap[date]) {
+        dateHabitsMap[date] = { count: 0, habits: [] }
       }
-      dateColorMap[date].count += 1
-      // If multiple habits on same day, we keep the first color or could blend
-      // Mosaic looks best with diverse colors, so first one is fine.
+      dateHabitsMap[date].count += 1
+      dateHabitsMap[date].habits.push(ci.habit_id)
 
       if (!stats[ci.habit_id]) {
         stats[ci.habit_id] = { dates: [], total: 0, streak: 0 }
@@ -83,10 +81,11 @@ export default function ProfileScreen(): React.JSX.Element {
       stats[id].streak = calculateStreak(stats[id].dates)
     })
 
-    const mosaic = Object.entries(dateColorMap).map(([date, data]) => ({
+    const mosaic = Object.entries(dateHabitsMap).map(([date, data]) => ({
       date,
       count: data.count,
-      color: data.color
+      // Pick primary color based on deterministic habit ID sort
+      color: habitColorMap[data.habits.sort()[0]] || colors.accent
     }))
 
     return { mosaicCheckIns: mosaic, habitStats: stats }
@@ -127,9 +126,12 @@ export default function ProfileScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: spacing.xxl + insets.bottom }
+        ]} 
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}

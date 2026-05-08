@@ -19,7 +19,7 @@ import { colors, radius, spacing } from '@/theme/tokens'
 
 interface HabitGridProps {
   checkInDates?: string[] // Legacy support for simple string arrays
-  checkIns?: { date: string; count: number }[]
+  checkIns?: { date: string; count: number; color?: string }[]
   onPressDay?: (day: GridDay) => void
   themeColor?: string
 }
@@ -58,7 +58,7 @@ export const HabitGrid = React.memo(({
       checkIns.forEach(ci => {
         const dateOnly = normalize(ci.date)
         if (!counts[dateOnly]) {
-          counts[dateOnly] = { count: 0, color: (ci as any).color }
+          counts[dateOnly] = { count: 0, color: ci.color }
         }
         counts[dateOnly].count += ci.count
       })
@@ -156,7 +156,7 @@ export const HabitGrid = React.memo(({
                     const x = col * (cellSize + cellGap)
                     const y = row * (cellSize + cellGap)
 
-                    const cellBaseColor = (day as any).color || themeColor || colors.accent
+                    const cellBaseColor = day.color || themeColor || colors.accent
                     const cellColor = day.intensity === 0 ? colors.gridEmpty : cellBaseColor
                     
                     const cellOpacity = (day.intensity > 0)
