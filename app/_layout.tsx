@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler'
 import '../global.css'
 import 'react-native-reanimated'
 
@@ -23,6 +24,8 @@ import { SENTRY_DSN } from '@/constants/config'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { colors } from '@/theme/tokens'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import CustomSplashScreen from '@/components/SplashScreen'
 
 // ---------------------------------------------------------------------------
@@ -141,12 +144,18 @@ function RootLayout(): React.JSX.Element | null {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* <PostHogProvider client={posthog}> */}
-        <StatusBar style="dark" backgroundColor={colors.background} />
-        <Navigation />
-      {/* </PostHogProvider> */}
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <StatusBar style="dark" backgroundColor={colors.background} />
+          {showSplash ? (
+            <CustomSplashScreen onFinish={() => setShowSplash(false)} />
+          ) : (
+            <Navigation />
+          )}
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   )
 }
 

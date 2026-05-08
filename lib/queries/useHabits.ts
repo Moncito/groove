@@ -11,12 +11,13 @@ export interface Habit {
   custom_days: number[] | null
   is_active: boolean
   created_at: string
+  type: 'activity' | 'output'
 }
 
 async function fetchHabits(userId: string): Promise<Habit[]> {
   const { data, error } = await supabase
     .from('habits')
-    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at')
+    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at, type')
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at', { ascending: true })
@@ -36,7 +37,7 @@ export function useHabits(userId: string) {
 async function fetchHabit(habitId: string): Promise<Habit> {
   const { data, error } = await supabase
     .from('habits')
-    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at')
+    .select('id, user_id, name, icon, color, frequency, custom_days, is_active, created_at, type')
     .eq('id', habitId)
     .single()
 
