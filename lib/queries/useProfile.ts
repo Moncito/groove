@@ -53,7 +53,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Profile> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Pick<Profile, 'display_name' | 'username' | 'bio' | 'avatar_url'>>) => {
       // 1. Update the public.users table
       const { data, error } = await supabase
         .from('users')
@@ -65,14 +65,13 @@ export function useUpdateProfile() {
       if (error) throw error
 
       // 2. Sync with Auth Metadata so the local session stays updated
-      if (updates.username || updates.display_name) {
-        const { error: authError } = await supabase.auth.updateUser({
-          data: {
-            username: updates.username,
-            full_name: updates.display_name
-          }
-        })
-        if (authError) console.error('Failed to sync auth metadata:', authError)
+      if (updates.username !== undefined || updates.display_name !== undefined) {
+        const metadata: Record<string, any> = {}
+        if (updates.username !== undefined) metadata.username = updates.username
+        if (updates.display_name !== undefined) metadata.full_name = updates.display_name
+
+        const { error: authError } = await supabase.auth.updateUser({ data: metadata })
+        if (authError) throw authError
       }
 
       return data as Profile

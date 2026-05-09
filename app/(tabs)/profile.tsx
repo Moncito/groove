@@ -20,7 +20,7 @@ import {
   Image,
   Alert,
   Modal,
-  Dimensions
+  useWindowDimensions
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
@@ -49,7 +49,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const [selectedDay, setSelectedDay] = React.useState<any>(null)
   const [isModalVisible, setIsModalVisible] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<'habits' | 'activity' | 'circles'>('habits')
-  const screenWidth = Dimensions.get('window').width
+  const { width: screenWidth } = useWindowDimensions()
 
   const { data: profile, isLoading: isProfileLoading } = useProfileById(userId)
   const { data: habits, isLoading: isHabitsLoading } = useHabits(userId)
@@ -92,7 +92,7 @@ export default function ProfileScreen(): React.JSX.Element {
     const mosaic = Object.entries(dateHabitsMap).map(([date, data]) => ({
       date,
       count: data.count,
-      color: habitColorMap[data.habits.sort()[0]] || colors.accent
+      color: habitColorMap[[...data.habits].sort()[0]] || colors.accent
     }))
 
     const pStats = calculateProfileStats(profile.created_at, allCheckIns, habits.length)
