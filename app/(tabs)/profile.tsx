@@ -20,6 +20,7 @@ import {
   Image,
   Alert,
   Modal,
+  Dimensions
 } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
@@ -27,12 +28,15 @@ import { useRouter } from 'expo-router'
 import { Feather } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
-import { useProfile } from '@/lib/queries/useProfile'
+import { useProfileById } from '@/lib/queries/useProfile'
 import { useHabits } from '@/lib/queries/useHabits'
 import { useAllCheckIns } from '@/lib/queries/useCheckIns'
 import { colors, typography, spacing, radius } from '@/theme/tokens'
 import { HabitGrid } from '@/components/HabitGrid'
 import { calculateStreak } from '@/lib/streak'
+import { ProfileHeader } from '@/components/ProfileHeader'
+import * as Haptics from 'expo-haptics'
+import { calculateProfileStats } from '@/lib/stats'
 
 export default function ProfileScreen(): React.JSX.Element {
   const router = useRouter()
@@ -40,17 +44,21 @@ export default function ProfileScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets()
   
   const userId = user?.id ?? ''
-  const username = user?.user_metadata?.username || user?.email?.split('@')[0] || ''
   
+  const scrollRef = React.useRef<ScrollView>(null)
   const [selectedDay, setSelectedDay] = React.useState<any>(null)
   const [isModalVisible, setIsModalVisible] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState<'habits' | 'activity' | 'circles'>('habits')
+  const screenWidth = Dimensions.get('window').width
 
-  const { data: profile, isLoading: isProfileLoading } = useProfile(username)
+  const { data: profile, isLoading: isProfileLoading } = useProfileById(userId)
   const { data: habits, isLoading: isHabitsLoading } = useHabits(userId)
   const { data: allCheckIns, isLoading: isAllCheckInsLoading } = useAllCheckIns(userId)
 
-  const { mosaicCheckIns, habitStats } = React.useMemo(() => {
-    if (!allCheckIns || !habits) return { mosaicCheckIns: [], habitStats: {} }
+  const { mosaicCheckIns, habitStats, profileStats } = React.useMemo(() => {
+    if (!allCheckIns || !habits || !profile) {
+      return { mosaicCheckIns: [], habitStats: {}, profileStats: { totalDays: 0, totalCheckIns: 0, completionRate: 0 } }
+    }
     
     const habitColorMap = habits.reduce((acc, h) => {
       acc[h.id] = h.color
@@ -84,12 +92,19 @@ export default function ProfileScreen(): React.JSX.Element {
     const mosaic = Object.entries(dateHabitsMap).map(([date, data]) => ({
       date,
       count: data.count,
-      // Pick primary color based on deterministic habit ID sort
       color: habitColorMap[data.habits.sort()[0]] || colors.accent
     }))
 
-    return { mosaicCheckIns: mosaic, habitStats: stats }
-  }, [allCheckIns, habits])
+    const pStats = calculateProfileStats(profile.created_at, allCheckIns, habits.length)
+
+    return { mosaicCheckIns: mosaic, habitStats: stats, profileStats: pStats }
+  }, [allCheckIns, habits, profile])
+
+  const handleTabPress = (tab: typeof activeTab, index: number) => {
+    setActiveTab(tab)
+    scrollRef.current?.scrollTo({ x: index * screenWidth, animated: true })
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+  }
 
   const handleDayPress = (day: any) => {
     setSelectedDay(day)
@@ -111,7 +126,7 @@ export default function ProfileScreen(): React.JSX.Element {
     )
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', padding: spacing.xl }]}>
         <Text style={[styles.title, { textAlign: 'center', marginBottom: spacing.md }]}>Session Expired</Text>
@@ -129,31 +144,32 @@ export default function ProfileScreen(): React.JSX.Element {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView 
         contentContainerStyle={[
-          styles.scrollContent,
           { paddingBottom: spacing.xxl + insets.bottom }
         ]} 
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
       >
-        {/* Header Section */}
-        <View style={styles.profileHeader}>
-          <View style={[styles.avatar, { borderColor: colors.ink }]}>
-            <Text style={[styles.avatarText, { fontFamily: typography.fontFamily.black }]}>
-              {profile?.display_name?.charAt(0) || profile?.username?.charAt(0) || '?'}
-            </Text>
-          </View>
-          <Text style={[styles.displayName, { fontFamily: typography.fontFamily.black }]}>
-            {profile?.display_name || 'ANONYMOUS'}
-          </Text>
-          <Text style={[styles.username, { fontFamily: typography.fontFamily.medium }]}>
-            @{profile?.username}
-          </Text>
+        {/* 01. PROFILE IDENTITY */}
+        <View className="px-lg">
+          <ProfileHeader 
+            profile={profile}
+            isOwnProfile={true}
+            currentUserId={userId}
+            stats={profileStats}
+          />
         </View>
 
-        {/* UNIFIED MOSAIC GRID */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { fontFamily: typography.fontFamily.black }]}>
-            CONSISTENCY — UNIFIED
-          </Text>
+        {/* 02. UNIFIED MOSAIC GRID (HERO) */}
+        <View style={[styles.section, { paddingHorizontal: spacing.lg }]}>
+          <View className="flex-row items-center justify-between mb-md">
+            <Text style={[styles.sectionTitle, { fontFamily: typography.fontFamily.black, marginBottom: 0 }]}>
+              CONSISTENCY — UNIFIED
+            </Text>
+            <View className="flex-row items-center gap-xs">
+              <View className="w-2 h-2 rounded-full bg-accent" />
+              <Text style={[styles.sectionTitle, { fontSize: 9, marginBottom: 0 }]}>LIVE MOSAIC</Text>
+            </View>
+          </View>
           <View style={styles.gridCard}>
             <HabitGrid 
               checkIns={mosaicCheckIns} 
@@ -162,72 +178,154 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
         </View>
 
-        {/* INDIVIDUAL HABIT PROGRESS */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { fontFamily: typography.fontFamily.black }]}>
-            HABITS — PROGRESS
-          </Text>
-          
-          <View style={styles.habitList}>
-            {!habits || habits.length === 0 ? (
-              <Text style={styles.emptyText}>No habits yet.</Text>
-            ) : (
-              habits.map((habit) => {
-                const stats = habitStats[habit.id] || { dates: [], total: 0, streak: 0 }
-                
-                return (
-                  <TouchableOpacity 
-                    key={habit.id} 
-                    style={styles.habitProgressCard}
-                    onPress={() => router.push(`/habit/${habit.id}`)}
-                  >
-                    <View style={styles.habitCardHeader}>
-                      <View style={styles.habitCardInfo}>
-                        <View style={[styles.habitIcon, { backgroundColor: habit.color }]}>
-                          <Feather name={habit.icon as any} size={20} color="white" />
-                        </View>
-                        <View>
-                          <View style={styles.habitNameRow}>
-                            <Text style={[styles.habitName, { fontFamily: typography.fontFamily.black }]}>
-                              {habit.name.toUpperCase()}
-                            </Text>
-                            {stats.streak > 0 && (
-                              <View style={[styles.streakBadge, { backgroundColor: habit.color }]}>
-                                <Text style={styles.streakBadgeText}>🔥 {stats.streak}</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={[styles.habitTarget, { fontFamily: typography.fontFamily.bold }]}>
-                            {habit.frequency.toUpperCase()}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.habitTotal}>
-                        <Text style={[styles.totalCount, { fontFamily: typography.fontFamily.black }]}>
-                          {stats.total}
-                        </Text>
-                        <Text style={[styles.totalLabel, { fontFamily: typography.fontFamily.bold }]}>
-                          TOTAL
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    <HabitGrid 
-                      checkInDates={stats.dates} 
-                      themeColor={habit.color}
-                      cellSize={8}
-                    />
-                  </TouchableOpacity>
-                )
-              })
-            )}
+        {/* 03. TAB SELECTOR */}
+        <View className="bg-background border-b border-border px-lg">
+          <View className="flex-row">
+            {(['habits', 'activity', 'circles'] as const).map((tab, idx) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => handleTabPress(tab, idx)}
+                className="flex-1 items-center pt-md pb-lg"
+              >
+                <Text 
+                  style={{ 
+                    fontFamily: activeTab === tab ? typography.fontFamily.black : typography.fontFamily.bold,
+                    color: activeTab === tab ? colors.ink : colors.inkTertiary,
+                    letterSpacing: 1.5,
+                    fontSize: 11
+                  }}
+                >
+                  {tab.toUpperCase()}
+                </Text>
+                {activeTab === tab && (
+                  <View className="absolute bottom-[-1] w-full h-[3px] bg-ink" />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={[styles.logoutText, { fontFamily: typography.fontFamily.bold }]}>SIGN OUT</Text>
-        </TouchableOpacity>
+        {/* 04. TAB CONTENT (HORIZONTAL SLIDER) */}
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          scrollEnabled={false} // Only allow navigation via tab bar for stability
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+        >
+          {/* TAB 01: HABITS */}
+          <View style={{ width: screenWidth }}>
+            <View style={[styles.habitList, { paddingHorizontal: spacing.lg, paddingTop: spacing.lg }]}>
+              {!habits || habits.length === 0 ? (
+                <View className="py-xxxl items-center">
+                  <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.bold }]}>NO HABITS TRACKED YET</Text>
+                  <TouchableOpacity 
+                    onPress={() => router.push('/habit/create')}
+                    className="mt-lg h-12 px-xl rounded-md bg-ink justify-center items-center"
+                  >
+                    <Text className="color-white font-inter-bold text-label-sm tracking-widest">START TRACKING</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                habits.map((habit) => {
+                  const stats = habitStats[habit.id] || { dates: [], total: 0, streak: 0 }
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={habit.id} 
+                      style={styles.habitProgressCard}
+                      onPress={() => router.push(`/habit/${habit.id}`)}
+                    >
+                      <View style={styles.habitCardHeader}>
+                        <View style={styles.habitCardInfo}>
+                          <View style={[styles.habitIcon, { backgroundColor: habit.color }]}>
+                            <Feather name={habit.icon as any} size={20} color="white" />
+                          </View>
+                          <View>
+                            <View style={styles.habitNameRow}>
+                              <Text style={[styles.habitName, { fontFamily: typography.fontFamily.black }]}>
+                                {habit.name.toUpperCase()}
+                              </Text>
+                              {stats.streak > 0 && (
+                                <View style={[styles.streakBadge, { backgroundColor: habit.color }]}>
+                                  <Text style={styles.streakBadgeText}>🔥 {stats.streak}</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[styles.habitTarget, { fontFamily: typography.fontFamily.bold }]}>
+                              {habit.frequency.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.habitTotal}>
+                          <Text style={[styles.totalCount, { fontFamily: typography.fontFamily.black }]}>
+                            {stats.total}
+                          </Text>
+                          <Text style={[styles.totalLabel, { fontFamily: typography.fontFamily.bold }]}>
+                            TOTAL
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <HabitGrid 
+                        checkInDates={stats.dates} 
+                        themeColor={habit.color}
+                        cellSize={8}
+                      />
+                    </TouchableOpacity>
+                  )
+                })
+              )}
+            </View>
+          </View>
+
+          {/* TAB 02: ACTIVITY */}
+          <View style={{ width: screenWidth }}>
+            <View className="py-xxxl items-center px-lg">
+              <Feather name="camera" size={48} color={colors.gridEmpty} />
+              <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.bold, marginTop: spacing.lg, textAlign: 'center' }]}>
+                NO EVIDENCE POSTED YET
+              </Text>
+              <Text style={[styles.emptyText, { fontSize: 13, marginTop: spacing.xs, textAlign: 'center' }]}>
+                Share proof to build your social credibility.
+              </Text>
+            </View>
+          </View>
+
+          {/* TAB 03: CIRCLES */}
+          <View style={{ width: screenWidth }}>
+            <View className="py-xxxl items-center px-lg">
+              <Feather name="users" size={48} color={colors.gridEmpty} />
+              <Text style={[styles.emptyText, { fontFamily: typography.fontFamily.bold, marginTop: spacing.lg, textAlign: 'center' }]}>
+                NO CIRCLES JOINED
+              </Text>
+              <Text style={[styles.emptyText, { fontSize: 13, marginTop: spacing.xs, textAlign: 'center' }]}>
+                Connect with others tracking similar goals.
+              </Text>
+              <TouchableOpacity 
+                onPress={() => router.push('/explore')}
+                className="mt-lg h-12 px-xl rounded-md bg-ink justify-center items-center"
+              >
+                <Text className="color-white font-inter-bold text-label-sm tracking-widest">FIND CIRCLES</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* 05. ACTIONS */}
+        <View className="px-lg">
+          <TouchableOpacity 
+            style={[styles.logoutButton, { borderColor: colors.ink, marginTop: spacing.xxxl }]} 
+            onPress={handleLogout}
+          >
+            <Text style={[styles.logoutText, { color: colors.ink, fontFamily: typography.fontFamily.bold }]}>SIGN OUT</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+
+
+
 
       {/* Day Detail Modal */}
       <Modal
@@ -303,36 +401,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
-    paddingBottom: spacing.xxxl,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: spacing.xxl,
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 3,
-  },
-  avatarText: {
-    fontSize: 40,
-    color: colors.ink,
-  },
-  displayName: {
-    fontSize: 28,
-    color: colors.ink,
-    letterSpacing: -1,
-  },
-  username: {
-    fontSize: 16,
-    color: colors.inkSecondary,
+    paddingBottom: spacing.xxl,
   },
   section: {
     marginBottom: spacing.xxl,

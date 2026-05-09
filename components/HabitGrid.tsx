@@ -83,22 +83,6 @@ export const HabitGrid = React.memo(({
 
   const data = useMemo(() => generateGridData(normalizedCheckIns), [normalizedCheckIns])
 
-  // Entry animation value using Reanimated
-  const scale = useSharedValue(0)
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: scale.value,
-  }))
-
-  React.useEffect(() => {
-    scale.value = 0
-    scale.value = withSpring(1, {
-      damping: 15,
-      stiffness: 120,
-    })
-  }, [data, scale])
-
   const handlePress = (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent
     
@@ -145,9 +129,9 @@ export const HabitGrid = React.memo(({
               ) : null
             ))}
           </View>
-
+          
           <TouchableWithoutFeedback onPress={handlePress}>
-            <Animated.View style={animatedStyle}>
+            <View>
               <Canvas style={{ width: GRID_WIDTH, height: GRID_HEIGHT }}>
                 <Group>
                   {data.map((day, index) => {
@@ -178,7 +162,7 @@ export const HabitGrid = React.memo(({
                   })}
                 </Group>
               </Canvas>
-            </Animated.View>
+            </View>
           </TouchableWithoutFeedback>
         </View>
       </ScrollView>

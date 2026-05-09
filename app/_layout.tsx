@@ -80,6 +80,7 @@ function Navigation(): React.JSX.Element {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="[username]" />
+      <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       <Stack.Screen name="habit/[id]" />
       <Stack.Screen name="habit/create" />
     </Stack>
