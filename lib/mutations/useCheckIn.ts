@@ -9,6 +9,7 @@ interface CheckInInput {
   habitId: string
   note?: string
   photoUri?: string
+  shareGrid?: boolean
 }
 
 async function checkInHabit(input: CheckInInput, userId: string): Promise<CheckIn> {
@@ -26,8 +27,9 @@ async function checkInHabit(input: CheckInInput, userId: string): Promise<CheckI
       checked_date: formatCheckedDate(new Date()),
       note: input.note ?? null,
       proof_url: proofUrl,
+      share_grid: input.shareGrid ?? false,
     })
-    .select('id, habit_id, user_id, checked_date, proof_url, note, created_at')
+    .select('id, habit_id, user_id, checked_date, proof_url, note, share_grid, created_at')
     .single()
 
   if (error) throw error
