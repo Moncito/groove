@@ -46,9 +46,9 @@ const PAGE_SIZE = 20
 
 async function fetchFeedPage(
   followingIds: string[],
-  cursor: string | null,
+  cursor: { createdAt: string; id: string } | null,
   currentUserId: string,
-): Promise<{ items: FeedItem[]; nextCursor: string | null }> {
+): Promise<{ items: FeedItem[]; nextCursor: { createdAt: string; id: string } | null }> {
   if (followingIds.length === 0) return { items: [], nextCursor: null }
 
   let query = supabase
@@ -60,10 +60,11 @@ async function fetchFeedPage(
     `)
     .in('user_id', followingIds)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(PAGE_SIZE)
 
   if (cursor) {
-    query = query.lt('created_at', cursor)
+    query = query.or(`created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`)
   }
 
   const { data, error } = await query
@@ -95,6 +96,11 @@ async function fetchFeedPage(
       .in('check_in_id', checkInIds)
       .eq('user_id', currentUserId),
   ])
+
+  // Throw if any query failed
+  if (reactionsResult.error) throw new Error(`Feed reactions fetch failed: ${reactionsResult.error.message}`)
+  if (commentsResult.error) throw new Error(`Feed comments fetch failed: ${commentsResult.error.message}`)
+  if (userReactionsResult.error) throw new Error(`Feed user reactions fetch failed: ${userReactionsResult.error.message}`)
 
   // Build reaction count map: { checkInId: { fire: 3, grit: 1, props: 0 } }
   const reactionMap: Record<string, ReactionCounts> = {}
@@ -133,7 +139,12 @@ async function fetchFeedPage(
   }))
 
   const nextCursor =
-    items.length === PAGE_SIZE ? items[items.length - 1].created_at : null
+    items.length === PAGE_SIZE
+      ? {
+          createdAt: items[items.length - 1].created_at,
+          id: items[items.length - 1].id,
+        }
+      : null
 
   return { items, nextCursor }
 }
@@ -144,10 +155,10 @@ async function fetchFeedPage(
 
 export function useFeed(followingIds: string[], currentUserId: string) {
   return useInfiniteQuery({
-    queryKey: ['feed', followingIds],
+    queryKey: ['feed', followingIds, currentUserId],
     queryFn: ({ pageParam }) =>
-      fetchFeedPage(followingIds, pageParam ?? null, currentUserId),
-    initialPageParam: null as string | null,
+      fetchFeedPage(followingIds, pageParam as { createdAt: string; id: string } | null, currentUserId),
+    initialPageParam: null as { createdAt: string; id: string } | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: followingIds.length > 0,
   })

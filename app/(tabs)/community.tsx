@@ -145,6 +145,10 @@ export default function CommunityScreen(): React.JSX.Element {
           onPress={toggleSearch}
           hitSlop={12}
           style={styles.searchToggle}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={searchVisible ? 'Close search' : 'Open search'}
+          accessibilityHint="Toggles the search input"
         >
           <Feather
             name={searchVisible ? 'x' : 'search'}
@@ -233,7 +237,13 @@ export default function CommunityScreen(): React.JSX.Element {
               />
             }
             ListHeaderComponent={
-              isDiscoveryMode && feedItems.length > 0 ? <EmptyFeed /> : null
+              isDiscoveryMode && feedItems.length > 0 ? (
+                <View style={styles.discoveryIntro}>
+                  <Text style={styles.discoveryIntroText}>
+                    People are showing up. Find someone to follow.
+                  </Text>
+                </View>
+              ) : null
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -407,5 +417,21 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
+  },
+  discoveryIntro: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  discoveryIntroText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: 14,
+    color: colors.inkSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 })
